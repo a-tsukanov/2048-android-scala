@@ -1,20 +1,24 @@
 package com.example.hello
 
+import android.R
 import android.app.Activity
+import android.content.Intent
 import android.view.View.OnClickListener
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.graphics.drawable.Animatable
 import android.util.Log
 import android.view.View
+import android.view.KeyEvent
 import android.widget.Toast
-import com.example.hello.board.{Board, Cell, FilledBoardException}
+import com.example.hello.board.{Board, Cell}
 
 class MainActivity extends AppCompatActivity {
   // allows accessing `.value` on TR.resource.constants
   implicit val context = this
 
   private var board = new Board(4)
+    .updatedRandomCellWithOneOrTwo
 
   private lazy val vh: TypedViewHolder.activity_main = TypedViewHolder.setContentView(this, TR.layout.activity_main)
 
@@ -62,20 +66,43 @@ class MainActivity extends AppCompatActivity {
     } updateCell(i.toString + j.toString, cell)
   }
 
+  private def generateCellAndRenderBoardAndCheckFilled() = {
+    board = board.updatedRandomCellWithOneOrTwo
+
+    renderBoard()
+
+    if (filled) {
+      List(vh.btnUp, vh.btnDown, vh.btnLeft, vh.btnRight)
+        .map(_.setEnabled(false))
+
+
+      val intent = new Intent(MainActivity.this, classOf[RestartActivity])
+      MainActivity.this.startActivity(intent)
+
+    }
+  }
+
   private def listener(func: Unit => Unit): OnClickListener = new OnClickListener {
     override def onClick(view: View): Unit = {
       func()
-      if (filled)
-        List(vh.btnUp, vh.btnDown, vh.btnLeft, vh.btnRight)
-          .map(_.setEnabled(false))
       board = board.updatedRandomCellWithOneOrTwo
       renderBoard()
+
+      if (filled) {
+        List(vh.btnUp, vh.btnDown, vh.btnLeft, vh.btnRight)
+          .map(_.setEnabled(false))
+
+
+        val intent = new Intent(MainActivity.this, classOf[RestartActivity])
+        MainActivity.this.startActivity(intent)
+
+      }
     }
   }
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
-    // type ascription is required due to SCL-10491
+    renderBoard()
 
     vh.btnUp.setOnClickListener(
       listener(_ => board = board.movedUp)
@@ -90,5 +117,31 @@ class MainActivity extends AppCompatActivity {
       listener(_ => board = board.movedLeft)
     )
 
+    vh.game_board.setOnTouchListener(new SwipeDetector(context) {
+      override def onSwipeUp() = {
+        super.onSwipeUp()
+        board = board.movedUp
+        generateCellAndRenderBoardAndCheckFilled()
+      }
+      override def onSwipeDown() = {
+        super.onSwipeDown()
+        board = board.movedDown
+        generateCellAndRenderBoardAndCheckFilled()
+      }
+      override def onSwipeLeft() = {
+        super.onSwipeUp()
+        board = board.movedLeft
+        generateCellAndRenderBoardAndCheckFilled()
+      }
+      override def onSwipeRight() = {
+        super.onSwipeUp()
+        board = board.movedRight
+        generateCellAndRenderBoardAndCheckFilled()
+      }
+    })
+
   }
+
+
+
 }
